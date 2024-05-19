@@ -7,12 +7,9 @@ import time
 import pytz
 import pandas as pd
 import tempfile
-import pyarrow as pa
-import pyarrow.parquet as pq
 import io
 from bs4 import BeautifulSoup
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
 from azure.keyvault.secrets import SecretClient
 from datetime import datetime
 from deltalake import DeltaTable, write_deltalake
@@ -113,22 +110,6 @@ def convert_timestamp_to_myt_date():
     formatted_timestamp = myt_timestamp.strftime("%d%m%Y")
     return formatted_timestamp
 
-
-def convert_list_into_dataframe(player_data, local_filetemppath):
-    df = pd.DataFrame(player_data)
-
-    output = io.BytesIO()
-
-    # Write the DataFrame to the BytesIO object as a Parquet stream
-    table = pa.Table.from_pandas(df)
-    writer = pa.BufferOutputStream()
-    pq_writer = pa.parquet.ParquetWriter(writer, table.schema)
-    pq_writer.write_table(table)
-    pq_writer.close()
-
-    parquet_stream = writer.getvalue()
-
-    return parquet_stream
     
 
 def get_secret_value():
@@ -141,22 +122,27 @@ def get_secret_value():
     secret_client = SecretClient(vault_url=KEY_VAULT_URL, credential=credential)
 
     # Get the secret value
-    secret_name = "upload-blob-adls-python"
-    retrieved_secret = secret_client.get_secret(secret_name)
+    sp_secret_name = "upload-blob-adls-python"
+    sp_retrieved_secret = secret_client.get_secret(sp_secret_name)
+
+    sp_client_id = "azure-function-transfermarkt-dev-sp-client-id"
+    sp_retrieved_client_id = secret_client.get_secret(sp_client_id)
+
+    sp_tenant_id = "azure-function-transfermarkt-dev-sp-tenant-id"
+    sp_retrieved_tenant_id = secret_client.get_secret(sp_tenant_id)
 
     # Print the secret value
-    return retrieved_secret.value
+    return sp_retrieved_client_id.value, sp_retrieved_secret.value, sp_retrieved_tenant_id.value
 
 
-def upload(data, client_secret):
+def upload(data, client_id, client_secret, tenant_id):
     storage_options = {
         'AZURE_STORAGE_ACCOUNT_NAME': 'azfarsadev',
-        'AZURE_STORAGE_CLIENT_ID': '5410d93c-2a3e-4599-ac58-8e7b5b19f57c',
-        'AZURE_STORAGE_CLIENT_SECRET': '',
-        'AZURE_STORAGE_TENANT_ID': 'e45a8dcd-cacc-4155-b82e-c8d06c42d755',
+        'AZURE_STORAGE_CLIENT_ID': client_id,
+        'AZURE_STORAGE_CLIENT_SECRET': client_secret,
+        'AZURE_STORAGE_TENANT_ID': tenant_id,
     }
 
-    storage_options['AZURE_STORAGE_CLIENT_SECRET'] = client_secret
     
     # write some data into a delta table
     df = pd.DataFrame(data)
@@ -192,11 +178,11 @@ def test_function(req: func.HttpRequest) -> func.HttpResponse:
     local_filepath = f"{local_temppath}/{file_name}"
     blob_filepath = f"player_transfermarkt/current/{current_date}/{file_name}"
 
-    blob_secret_value = get_secret_value()
+    client_id, client_secret, client_tenant_id = get_secret_value()
 
     if count_of_club_url == 2:
         player_data = extract_player_details(team_data)
-        upload(player_data, blob_secret_value)
+        upload(player_data, client_id, client_secret, client_tenant_id)
 
         #for club in data:
         #    local_temppath = tempfile.gettempdir()
