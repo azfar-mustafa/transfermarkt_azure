@@ -4,7 +4,7 @@ import logging
 import requests
 import pytz
 import pandas as pd
-import tempfile
+import time
 from bs4 import BeautifulSoup
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
@@ -60,12 +60,13 @@ def get_link_count(club_url: list[str]) -> int:
     return url_count
 
 
-def extract_player_details(club_url: list[str]) -> list[str]:
+def extract_player_details(club_url: list[str], load_date: str) -> list[str]:
     """
     Get player details for each club.
 
     Args:
         club_url str: String of Url club.
+        load_date str: Date of data loaded.
     
     Returns:
         list[str]: List of player details contain dictionaries. Each dictionary Consists of player name, url, date of birth, country and market value.
@@ -87,16 +88,43 @@ def extract_player_details(club_url: list[str]) -> list[str]:
             row_data = {}
             player_name = player.find('a', href=lambda href: href and 'profil' in href) # learn lambda more
             if player_name:
+                player_url_link = f"https://www.transfermarkt.com{player_name['href']}"
+                player_full_name, player_height, player_detailed_position, player_preferred_foot = get_player_attribute(player_url_link)
                 row_data['player_name'] = player_name.text.strip()
-                row_data['player_link'] = player_name['href']
+                row_data['player_full_name'] = player_full_name
+                row_data['player_height'] = player_height
+                row_data['player_detailed_position'] = player_detailed_position
+                row_data['player_preferred_foot'] = player_preferred_foot
+                row_data['player_link'] = f"https://www.transfermarkt.com{player_name['href']}"
+
                 player_details = player.find_all('td', class_=['zentriert'])
                 row_data['player_dob'] = player_details[1].text.split('(')[0].strip()
                 row_data['player_country'] = player_details[2].find('img')['alt']
+
                 player_value = player.find_all('td', class_=['rechts hauptlink'])
                 row_data['player_value'] = player_value[0].text
+                row_data['load_date'] = load_date
+
                 data.append(row_data)
 
     return data
+
+
+def get_player_attribute(player_full_page_link):
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+
+    individual_page = requests.get(player_full_page_link, headers=headers)
+
+    player_detail_html = BeautifulSoup(individual_page.text, 'html.parser')
+
+    player_attribute = player_detail_html.find_all('span', class_='info-table__content--bold')
+
+    full_name = player_attribute[0].text.strip() if len(player_attribute) > 0 else 'NULL'
+    height = player_attribute[3].text.strip() if len(player_attribute) > 3 else 'NULL'
+    position = player_attribute[5].text.strip() if len(player_attribute) > 5 else 'NULL'
+    foot = player_attribute[6].text.strip() if len(player_attribute) > 6 else 'NULL'
+
+    return full_name, height, position, foot
 
 
 def convert_timestamp_to_myt_date() -> str:
@@ -148,7 +176,7 @@ def get_secret_value(key_vault_url: str) -> str:
     return sp_retrieved_client_id.value, sp_retrieved_secret.value, sp_retrieved_tenant_id.value
 
 
-def upload(player_list: list[str], client_id: str, client_secret: str, tenant_id: str, container: str, adls_name: str) -> str:
+def upload(player_list: list[str], client_id: str, client_secret: str, tenant_id: str, container: str, adls_name: str, season: int) -> str:
     """
     Upload player data into ADLS2 as delta format
 
@@ -174,7 +202,7 @@ def upload(player_list: list[str], client_id: str, client_secret: str, tenant_id
     try:
         # Convert player list into dataframe and upload into ADLS2 as Delta format
         df = pd.DataFrame(player_list)
-        write_deltalake(f"abfss://{container}@{adls_name}.dfs.core.windows.net/transfermarkt/tables/test", df, mode='overwrite', storage_options=storage_options)
+        write_deltalake(f"abfss://{container}@{adls_name}.dfs.core.windows.net/transfermarkt/2025", df, mode='append', storage_options=storage_options)
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
@@ -198,22 +226,17 @@ def test_function(req: func.HttpRequest) -> func.HttpResponse:
     
     season = req.route_params.get('season')
 
-    #team_data = extract_club_link(season)
-    team_data = ['https://www.transfermarkt.com/luton-town/startseite/verein/1031/saison_id/2023', 'https://www.transfermarkt.com/sheffield-united/startseite/verein/350/saison_id/2023']
+    team_data = extract_club_link(season)
+    #team_data = ['https://www.transfermarkt.com/luton-town/startseite/verein/1031/saison_id/2023', 'https://www.transfermarkt.com/sheffield-united/startseite/verein/350/saison_id/2023']
     logging.info('EPL club link has been extracted')
 
     count_of_club_url = get_link_count(team_data)
 
-    local_temppath = tempfile.gettempdir()
-    file_name = f"transfermarkt_{current_date}.parquet"
-    local_filepath = f"{local_temppath}/{file_name}"
-    blob_filepath = f"player_transfermarkt/current/{current_date}/{file_name}"
-
     client_id, client_secret, client_tenant_id = get_secret_value(azure_dev_key_vault_url)
 
-    if count_of_club_url == 2:
-        player_data = extract_player_details(team_data)
-        upload(player_data, client_id, client_secret, client_tenant_id, storage_account_container, adls_name)
+    if count_of_club_url == 20:
+        player_data = extract_player_details(team_data, current_date)
+        upload(player_data, client_id, client_secret, client_tenant_id, storage_account_container, adls_name, season)
 
         #for club in data:
         #    local_temppath = tempfile.gettempdir()
