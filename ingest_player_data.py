@@ -68,7 +68,7 @@ def get_secret_value(key_vault_url: str) -> str:
     """
 
     # Create a DefaultAzureCredential object to authenticate with Azure Key Vault
-    credential = DefaultAzureCredential()
+    credential = DefaultAzureCredential(managed_identity_client_id='6156e8d9-e281-4380-aed1-22b1b8053c8f')
 
     # Create a SecretClient instance
     secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
