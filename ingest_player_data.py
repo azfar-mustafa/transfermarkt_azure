@@ -194,8 +194,8 @@ def my_orchestrator(context: df.DurableOrchestrationContext):
     storage_account_container = "bronze"
     azure_dev_key_vault_url = "https://azfar-keyvault-dev.vault.azure.net/"
 
-    #team_data = extract_club_link(season)
-    team_data = ['https://www.transfermarkt.com/luton-town/startseite/verein/1031/saison_id/2023', 'https://www.transfermarkt.com/sheffield-united/startseite/verein/350/saison_id/2023']
+    team_data = extract_club_link(season)
+    #team_data = ['https://www.transfermarkt.com/luton-town/startseite/verein/1031/saison_id/2023', 'https://www.transfermarkt.com/sheffield-united/startseite/verein/350/saison_id/2023']
 
     current_date = convert_timestamp_to_myt_date()
 
@@ -210,7 +210,7 @@ def my_orchestrator(context: df.DurableOrchestrationContext):
 
 
 
-    if count_of_club_url == 2:
+    if count_of_club_url == 20:
         player_data = yield context.call_activity('extract_player_details', test_parameter)
 
         test_parameter_two = {
