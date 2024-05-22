@@ -6,7 +6,8 @@
         "isEnabled": true,
         "excludedTypes": "Request"
       }
-    }
+    },
+    "functionTimeout": "00:10:00"
   },
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
