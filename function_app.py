@@ -1,30 +1,30 @@
 import azure.functions as func
-import datetime
-import json
 import logging
-from ingest_club_link import bp
-from additional_functions_two import bp_second
 
-app = func.FunctionApp()
+from test_durable import bp
 
-app.register_blueprint(bp)
-app.register_blueprint(bp_second)
+app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+app.register_functions(bp) # register the DF functions
 
-#@app.function_name('FirstHTTPFunction')
-#@app.route(route="myroute", auth_level=func.AuthLevel.ANONYMOUS)
-#def test_function(req: func.HttpRequest) -> func.HttpResponse:
-#    logging.info('Python HTTP trigger function processed a request')
-#    return func.HttpResponse(
-#        "wow this HTTP works",
-#        status_code=200
-#    )
-
-
-#@app.function_name('SecondHTTPFunction')
-#@app.route(route="newroute", auth_level=func.AuthLevel.ANONYMOUS)
-#def test_function(req: func.HttpRequest) -> func.HttpResponse:
-#    logging.info('Python HTTP trigger function processed second request')
-#    return func.HttpResponse(
-#        "wow second HTTP works",
-#        status_code=200
-#    )
+# Define a simple HTTP trigger function, to show that you can also
+# register functions via the `app` object
+#@app.route(route="HttpTrigger")
+#def HttpTrigger(req: func.HttpRequest) -> func.HttpResponse:
+#    logging.info('Python HTTP trigger function processed a request.')
+#
+#    name = req.params.get('name')
+#    if not name:
+#        try:
+#            req_body = req.get_json()
+#        except ValueError:
+#            pass
+#        else:
+#            name = req_body.get('name')
+#
+#    if name:
+#        return func.HttpResponse(f"Hello, {name}. This HTTP triggered function executed successfully.")
+#    else:
+#        return func.HttpResponse(
+#             "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
+#             status_code=200
+#        )
