@@ -194,31 +194,40 @@ def my_orchestrator(context: df.DurableOrchestrationContext):
     storage_account_container = "bronze"
     azure_dev_key_vault_url = "https://azfar-keyvault-dev.vault.azure.net/"
 
-    #season = 2023
+    #team_data = extract_club_link(season)
+    team_data = ['https://www.transfermarkt.com/luton-town/startseite/verein/1031/saison_id/2023', 'https://www.transfermarkt.com/sheffield-united/startseite/verein/350/saison_id/2023']
 
-    team_data = extract_club_link(season)
-    #team_data = ['https://www.transfermarkt.com/luton-town/startseite/verein/1031/saison_id/2023', 'https://www.transfermarkt.com/sheffield-united/startseite/verein/350/saison_id/2023']
-
-    current_date =convert_timestamp_to_myt_date()
+    current_date = convert_timestamp_to_myt_date()
 
     count_of_club_url = get_link_count(team_data)
 
     client_id, client_secret, client_tenant_id = get_secret_value(azure_dev_key_vault_url)
 
-    test_parameter = (team_data, current_date)
+    test_parameter = {
+        "team_data": team_data,
+        "current_date": current_date
+    }
 
 
 
-    if count_of_club_url == 20:
+    if count_of_club_url == 2:
         player_data = yield context.call_activity('extract_player_details', test_parameter)
 
-        test_parameter_two = (player_data, client_id, client_secret, client_tenant_id, storage_account_container, adls_name, season)
+        test_parameter_two = {
+            "player_data": player_data,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "client_tenant_id": client_tenant_id,
+            "storage_account_container": storage_account_container,
+            "adls_name": adls_name,
+            "season": season
+            }
 
         yield context.call_activity('upload', test_parameter_two)
 
 
 @bp.activity_trigger(input_name="input1")
-def extract_player_details(input1: str) -> list[str]:
+def extract_player_details(input1: dict) -> list[str]:
     """
     Get player details for each club.
 
@@ -228,16 +237,17 @@ def extract_player_details(input1: str) -> list[str]:
     
     Returns:
         list[str]: List of player details contain dictionaries. Each dictionary Consists of player name, url, date of birth, country and market value.
+
+    Reference:
+        Input for parameter should be JSON serializable - https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-bindings?tabs=python-v2%2Cin-process%2C2x-durable-functions&pivots=programming-language-python#trigger-sample-1
     """
-    club_url, load_date = input1
+    club_url, load_date = (input1.get(key) for key in ("team_data", "current_date"))
     data = []
 
     for club in club_url:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
     
         individual_club_url = requests.get(club, headers=headers)
-
-        #if club_url.status_code == 200:
 
         player_html = BeautifulSoup(individual_club_url.text, 'html.parser')
 
@@ -266,6 +276,8 @@ def extract_player_details(input1: str) -> list[str]:
 
                 data.append(row_data)
 
+                logging.info(f"Extracted and appended data for {row_data['player_name']}.")
+
     return data
 
 
@@ -275,7 +287,7 @@ def upload(input2: str) -> str:
     Upload player data into ADLS2 as delta format
 
     Args:
-        player_list list[str]: Azure Key Vault url
+        player_data list[str]: Azure Key Vault url
         client_id str: Service Principal client ID
         client_secret str: Service Principal client Secret
         tenant_id str: Service Principal tenant ID
@@ -286,7 +298,10 @@ def upload(input2: str) -> str:
         str: Return confirmation message that it has been uploaded.
     """
 
-    player_list, client_id, client_secret, tenant_id, container, adls_name, season= input2
+    player_data, client_id, client_secret, tenant_id, container, adls_name, season = (
+    input2.get(key) for key in ("player_data", "client_id", "client_secret", "client_tenant_id", "storage_account_container", "adls_name", "season")
+    )
+
         
     storage_options = {
         'AZURE_STORAGE_ACCOUNT_NAME': adls_name,
@@ -297,9 +312,11 @@ def upload(input2: str) -> str:
 
     try:
         # Convert player list into dataframe and upload into ADLS2 as Delta format
-        df = pd.DataFrame(player_list)
+        df = pd.DataFrame(player_data)
         write_deltalake(f"abfss://{container}@{adls_name}.dfs.core.windows.net/transfermarkt/{season}", df, mode='append', storage_options=storage_options)
+        logging.info("Player data has been uploaded successfully")
+        return f"Player data uploaded successfully as delta format."
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
-    return f"Player data uploaded successfully as delta format."
+    
