@@ -190,6 +190,8 @@ def my_orchestrator(context: df.DurableOrchestrationContext):
     input_context = context.get_input()
     season = input_context.get('epl_season')
 
+    start_time = time.time()
+
     adls_name = "azfarsadev"
     storage_account_container = "bronze"
     azure_dev_key_vault_url = "https://azfar-keyvault-dev.vault.azure.net/"
@@ -211,10 +213,18 @@ def my_orchestrator(context: df.DurableOrchestrationContext):
 
 
     if count_of_club_url == 20:
-        player_data = yield context.call_activity('extract_player_details', test_parameter)
+        parallel_tasks = []
+        for club in team_data:
+            task_input = {"club_url": club, "load_date": current_date}
+            parallel_tasks.append(context.call_activity('extract_player_details', task_input))
+        #player_data = yield context.call_activity('extract_player_details', test_parameter)
+
+        player_data_list = yield context.task_all(parallel_tasks)
+
+        aggregated_player_data = [player for sublist in player_data_list for player in sublist]
 
         test_parameter_two = {
-            "player_data": player_data,
+            "player_data": aggregated_player_data,
             "client_id": client_id,
             "client_secret": client_secret,
             "client_tenant_id": client_tenant_id,
@@ -224,6 +234,10 @@ def my_orchestrator(context: df.DurableOrchestrationContext):
             }
 
         yield context.call_activity('upload', test_parameter_two)
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    logging.info(f"Total time taken is {elapsed_time} seconds")
 
 
 @bp.activity_trigger(input_name="input1")
@@ -241,42 +255,36 @@ def extract_player_details(input1: dict) -> list[str]:
     Reference:
         Input for parameter should be JSON serializable - https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-bindings?tabs=python-v2%2Cin-process%2C2x-durable-functions&pivots=programming-language-python#trigger-sample-1
     """
-    club_url, load_date = (input1.get(key) for key in ("team_data", "current_date"))
+    club, load_date = (input1.get(key) for key in ("club_url", "load_date"))
+    logging.info(f"{club}")
     data = []
 
-    for club in club_url:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-    
-        individual_club_url = requests.get(club, headers=headers)
+    #for club in club_url:
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
 
-        player_html = BeautifulSoup(individual_club_url.text, 'html.parser')
-
-        players_list = player_html.find_all('tr', class_=['even', 'odd'])
-
-        for player in players_list:
-            row_data = {}
-            player_name = player.find('a', href=lambda href: href and 'profil' in href) # learn lambda more
-            if player_name:
-                player_url_link = f"https://www.transfermarkt.com{player_name['href']}"
-                player_full_name, player_height, player_detailed_position, player_preferred_foot = get_player_attribute(player_url_link)
-                row_data['player_name'] = player_name.text.strip()
-                row_data['player_full_name'] = player_full_name
-                row_data['player_height'] = player_height
-                row_data['player_detailed_position'] = player_detailed_position
-                row_data['player_preferred_foot'] = player_preferred_foot
-                row_data['player_link'] = f"https://www.transfermarkt.com{player_name['href']}"
-
-                player_details = player.find_all('td', class_=['zentriert'])
-                row_data['player_dob'] = player_details[1].text.split('(')[0].strip()
-                row_data['player_country'] = player_details[2].find('img')['alt']
-
-                player_value = player.find_all('td', class_=['rechts hauptlink'])
-                row_data['player_value'] = player_value[0].text
-                row_data['load_date'] = load_date
-
-                data.append(row_data)
-
-                logging.info(f"Extracted and appended data for {row_data['player_name']}.")
+    individual_club_url = requests.get(club, headers=headers)
+    player_html = BeautifulSoup(individual_club_url.text, 'html.parser')
+    players_list = player_html.find_all('tr', class_=['even', 'odd'])
+    for player in players_list:
+        row_data = {}
+        player_name = player.find('a', href=lambda href: href and 'profil' in href) # learn lambda more
+        if player_name:
+            player_url_link = f"https://www.transfermarkt.com{player_name['href']}"
+            player_full_name, player_height, player_detailed_position, player_preferred_foot = get_player_attribute(player_url_link)
+            row_data['player_name'] = player_name.text.strip()
+            row_data['player_full_name'] = player_full_name
+            row_data['player_height'] = player_height
+            row_data['player_detailed_position'] = player_detailed_position
+            row_data['player_preferred_foot'] = player_preferred_foot
+            row_data['player_link'] = f"https://www.transfermarkt.com{player_name['href']}"
+            player_details = player.find_all('td', class_=['zentriert'])
+            row_data['player_dob'] = player_details[1].text.split('(')[0].strip()
+            row_data['player_country'] = player_details[2].find('img')['alt']
+            player_value = player.find_all('td', class_=['rechts hauptlink'])
+            row_data['player_value'] = player_value[0].text
+            row_data['load_date'] = load_date
+            data.append(row_data)
+            logging.info(f"Extracted and appended data for {row_data['player_name']}.")
 
     return data
 
