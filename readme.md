@@ -4,18 +4,16 @@ This repository serves as a demonstration of building an end-to-end data project
 
 ## Project Overview
 
-The project aims to showcase how to scrape data from the Transfermarkt website and process it using Azure services. The scraped data could include player statistics, transfer values, market trends, and more.
+The project aims to showcase how to scrape data from the Transfermarkt website and process it using Azure services such as Azure Function, Azure Data Lake Storage 2, Azure Data Factory, Azure SQL Database and PowerBI. The data includes English Premier League players attribute such as the name, position, height, preferred foot and market value. Load date is also added to ease the data lineage.
 
 ## Project Architecture
 ![alt text](<Data_Pipeline_Flow-High Level Architecture.drawio.png>)
 
 ### Ingestion (Completed)
 
-The ingestion part of the project has been implemented using Azure Functions. Azure Functions provide a serverless compute service that enables you to run code on-demand without having to explicitly provision or manage infrastructure.
+The ingestion part of the project has been implemented using Azure Functions. Azure Functions provide a serverless compute service that enables you to run code on-demand without having to explicitly provision or manage infrastructure. It took advantage of Azure Durable Function capability to parallelize and speed up the process of extracting the players data.
 
 In this section, we have set up an Azure Function to scrape data from the Transfermarkt website and ingest it into Azure Data Lake Storage 2 in Delta Lake format. Ideally, the Azure Function should be at least triggered twice in a season which is after August when the first transfer market has been closed and after January when the second transfer market happened.
-
-The ingested data consists of English Premier League player attribute such as the name, position, height, preferred foot and market value. Load date is also added to ease the data lineage.
 
 ## Next Steps
 
