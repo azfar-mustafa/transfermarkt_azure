@@ -1,10 +1,13 @@
 # End-to-End Data Project: Scraping Data from Transfermarkt Website using Azure Services
 
-Welcome to the End-to-End Data Project repository! This repository serves as a demonstration of building an end-to-end data project focused on scraping data from the Transfermarkt website, utilizing various Azure services. Below, you'll find an overview of what has been implemented so far and what's planned for the project.
+This repository serves as a demonstration of building an end-to-end data project focused on scraping data from the Transfermarkt website, utilizing various Azure services. Below, you'll find an overview of what has been implemented so far and what's planned for the project.
 
 ## Project Overview
 
 The project aims to showcase how to scrape data from the Transfermarkt website and process it using Azure services. The scraped data could include player statistics, transfer values, market trends, and more.
+
+## Project Architecture
+![alt text](<Data_Pipeline_Flow-High Level Architecture.drawio.png>)
 
 ### Ingestion (Completed)
 
