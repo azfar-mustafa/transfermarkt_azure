@@ -31,6 +31,10 @@ We will utilize Azure Data Lake Storage or Azure Blob Storage to store both raw 
 
 Following processing and storage, we will proceed with data analysis using Azure Synapse Analytics or Azure Analysis Services. Visualization will be done using Power BI or Azure Data Studio. Deployment and monitoring of the entire pipeline will be managed using Azure DevOps or Azure Monitor.
 
+## Disclaimer
+
+This project is intended solely for learning purposes. The data scraped from the Transfermarkt website is used only for educational demonstrations and not for any commercial purposes. I do not intend to monetize any data obtained from Transfermarkt.
+
 ## Conclusion
 
 Stay tuned for updates as we continue to build and expand this end-to-end data project.
