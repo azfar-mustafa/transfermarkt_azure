@@ -13,7 +13,9 @@ The project aims to showcase how to scrape data from the Transfermarkt website a
 
 The ingestion part of the project has been implemented using Azure Functions. Azure Functions provide a serverless compute service that enables you to run code on-demand without having to explicitly provision or manage infrastructure.
 
-In this section, we have set up an Azure Function to scrape data from the Transfermarkt website and ingest it into Azure services. The Azure Function is triggered based on a predefined schedule or event, ensuring continuous data ingestion.
+In this section, we have set up an Azure Function to scrape data from the Transfermarkt website and ingest it into Azure Data Lake Storage 2 in Delta Lake format. Ideally, the Azure Function should be at least triggered twice in a season which is after August when the first transfer market has been closed and after January when the second transfer market happened.
+
+The ingested data consists of English Premier League player attribute such as the name, position, height, preferred foot and market value. Load date is also added to ease the data lineage.
 
 ## Next Steps
 
