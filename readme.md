@@ -24,6 +24,12 @@ We will utilize Azure Data Lake Storage or Azure Blob Storage to store both raw 
 * Azure Function Core Tools
 * Azure CLI
 
+## CI/CD with GitHub Actions
+This project uses GitHub Actions for Continuous Integration and Continuous Deployment (CI/CD). The GitHub Actions workflow automates the deployment process, ensuring that your Azure Functions are deployed seamlessly whenever changes are pushed to the repository.
+
+## More Details
+For more detailed information about the project, click [here](https://drive.google.com/drive/folders/1-D6GLuVdnOfryZJelAkKfmSro_mnVYX_) to access the Google Drive folder containing additional documentation and resources.
+
 ## Disclaimer
 
 This project is intended solely for learning purposes. The data scraped from the Transfermarkt website is used only for educational demonstrations and not for any commercial purposes. I do not intend to monetize any data obtained from Transfermarkt.
